@@ -15,7 +15,7 @@ struct connectionInfo
 
 connectionInfo info;
 
-void connectToServer(connectionInfo info)
+void connectToServer()
 {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -58,7 +58,7 @@ void receiveMessages(int sock)
         {
             cerr << "접속 중..." << endl;
             close(info.sock);
-            connectToServer(info);
+            connectToServer();
         }
 
         cout << "Received: " << recv_buffer << endl;
@@ -79,13 +79,12 @@ int main()
     string message;
     char buffer[1024];
 
-    // connectToServer(info);
+    connectToServer();
+        thread receiver(receiveMessages, info.sock);
+        thread sender(sendMessages, info.sock);
 
-    thread receiver(receiveMessages, info.sock);
-    thread sender(sendMessages, info.sock);
+        receiver.join();
+        sender.detach();
     
-    receiver.join();
-    sender.detach();
-
     return 0;
 }
