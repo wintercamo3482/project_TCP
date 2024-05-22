@@ -1,5 +1,9 @@
-# Welcome to GitHub Desktop!
+### 구현 현황
 
-This is your README. READMEs are where you can communicate what your project is and how to use it.
+1 : N 연결
 
-Write your name on line 6, save it, and then head back to GitHub Desktop.
+서버 및 클라이언트 중 하나가 강제 종료가 되었을 경우, 반대편에서 재실행할 때까지 대기하는 기능 구현
+
+### 미구현
+
+구조체 및 std::vector 형태의 데이터 송수신 기능
