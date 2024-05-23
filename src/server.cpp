@@ -5,14 +5,44 @@
 #include <thread>
 #include <cstring>
 #include <unistd.h>
+#include <sstream>
 using namespace std;
+
+#pragma pack(push, 1)
+struct my_data
+{
+    short id;
+    char major[64];
+    float grade;
+
+    my_data(short id, const char* major, float grade)
+    {
+        strncpy(this->major, major, sizeof(this->major) - 1);
+
+        this->id = id;
+        this->major[sizeof(this->major) - 1] = '\0';
+        this->grade = grade;        
+    }
+};
+#pragma pack(pop)
+
+vector<my_data> my_database;
+
+void makeDB()
+{
+    my_database.push_back({1, "전자공학과", 4.5f});
+    my_database.push_back({2, "기계공학과", 3.5f});
+    my_database.push_back({3, "생명공학과", 2.7f});
+    my_database.push_back({4, "항공우주공학과", 1.9f});
+    my_database.push_back({5, "전기공학과", 4.0f});
+
+}
 
 vector<int> clients;
 
 void messagesHandle(int clientSock)
 {
     char recv_buffer[1024];
-    string send_buffer;
 
     while (1)
     {
@@ -25,14 +55,31 @@ void messagesHandle(int clientSock)
             break;
         }
 
-        cout << clientSock << " : " << recv_buffer << endl;
+        else
+        {
+            std::cout << clientSock << " : " << recv_buffer << endl;
 
-        string send_buffer(recv_buffer, bytesReceived);        
-        
-        send(clientSock, send_buffer.c_str(), send_buffer.size(), 0);
+            istringstream iss(recv_buffer);
+
+            int tmp;
+            iss >> tmp;
+
+            if (iss.fail() || (tmp < 1 || tmp > 5))
+            {
+                string send_buffer = "잘못된 명령어. 다시 입력해주세요.";
+                send(clientSock, send_buffer.c_str(), send_buffer.size(), 0);
+            }
+
+            else
+            {
+                cout << my_database[tmp - 1].major << endl;
+                send(clientSock, (char *)&my_database[tmp - 1], sizeof(my_database[tmp - 1]), 0);
+            }
+        }
     }
 
     int i = 0;
+
     for (auto &clnt : clients)
     {
         if (clnt == clientSock)
@@ -44,11 +91,14 @@ void messagesHandle(int clientSock)
     }
     close(clientSock);
 
-    cout << "Client " << clientSock << " 가 나감." << endl;
+    std::cout << "Client " << clientSock << " 가 나감." << endl;
 }
 
 int main()
 {
+    // 구조체 데이터베이스 생성
+    makeDB();
+
     // socket ~ bind
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     int so_opt = 1;
@@ -79,7 +129,7 @@ int main()
         }
         
         clients.push_back(clientSocket);
-        cout << "연결된 클라이언트 번호 / 총 클라이언트 : " << clientSocket << " / " << clients.size() << endl;
+        std::cout << "연결된 클라이언트 번호 / 총 클라이언트 : " << clientSocket << " / " << clients.size() << endl;
 
         // 연결 성공한 클라이언트에 대해선 send/recv 용도의 스레드를 생성해서 부여함.
         thread(messagesHandle, clientSocket).detach();

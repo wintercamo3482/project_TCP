@@ -6,6 +6,14 @@
 #include <unistd.h>
 using namespace std;
 
+#pragma pack(push, 1)
+struct my_data
+{
+    short id;
+    char major[64];
+    float age;
+};
+#pragma pack(pop)
 
 struct connectionInfo
 {
@@ -22,7 +30,7 @@ void connectToServer()
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(54000);
-    serverAddr.sin_addr.s_addr = inet_addr("192.168.100.124");
+    serverAddr.sin_addr.s_addr = inet_addr("192.168.100.29");
 
     info.sock = sock;
     info.addr = serverAddr;
@@ -46,13 +54,13 @@ void connectToServer()
 
 void receiveMessages(int sock)
 {
-    char recv_buffer[1024];
+    my_data recv_buffer;
 
     while (true)
     {
-        memset(recv_buffer,0, sizeof(recv_buffer));
+        memset(&recv_buffer, 0, sizeof(recv_buffer));
         
-        int bytesReceived = recv(info.sock, recv_buffer, sizeof(recv_buffer), 0);
+        int bytesReceived = recv(info.sock, &recv_buffer, sizeof(recv_buffer), 0);
         
         if (bytesReceived <= 0)
         {
@@ -60,9 +68,18 @@ void receiveMessages(int sock)
             close(info.sock);
             connectToServer();
         }
+        else if (bytesReceived == sizeof(my_data))
+        {
+            cout << bytesReceived << " : " << sizeof(bytesReceived) << endl;
+            cout << recv_buffer.id << '\t' << recv_buffer.major << '\t' << recv_buffer.age << endl;
+        }
+        else
+        {
+            cerr << "유효하지 않는 입력. 1 ~ 5까지 숫자 중 하나만 입력." << endl;
+        }
 
-        cout << "Received: " << recv_buffer << endl;
     }
+
 }
 
 void sendMessages(int sock)
