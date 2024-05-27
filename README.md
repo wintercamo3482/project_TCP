@@ -12,8 +12,8 @@
 
 ### 빌드 및 실행
 ```
-g++ -o clnt client.cpp
-g++ -o serv server.cpp
+g++ -o clnt client.cpp -pthread
+g++ -o serv server.cpp -pthread
 ```
 **서버**
 ```
