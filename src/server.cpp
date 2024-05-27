@@ -1,11 +1,11 @@
 #include <iostream>
+#include <cstring>
+#include <vector>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <vector>
 #include <thread>
-#include <cstring>
-#include <unistd.h>
 #include <sstream>
+#include <unistd.h>
 using namespace std;
 
 #pragma pack(push, 1)
@@ -38,6 +38,24 @@ void makeDB()
 
 }
 
+int init_server()
+{
+    // socket ~ bind
+    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    int so_opt = 1;
+
+    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &so_opt, sizeof(so_opt));    // 서버를 강제 종료 -> 재실행을 할 경우, 포트를 재사용하기 위해 필요.
+
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(54000);
+    serverAddr.sin_addr.s_addr = inet_addr("192.168.100.124");
+
+    bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr));
+
+    return serverSocket;
+}
+
 vector<int> clients;
 
 void messagesHandle(int clientSock)
@@ -48,10 +66,16 @@ void messagesHandle(int clientSock)
     {
         memset(recv_buffer, 0, sizeof(recv_buffer));
         int bytesReceived = recv(clientSock, recv_buffer, sizeof(recv_buffer), 0);
-        
-        if (bytesReceived <= 0)
+        cout << std::this_thread::get_id() << endl;
+
+        if (bytesReceived == -1)
         {
-            cerr  << clientSock << "의 연결 끊김." << endl;
+            continue;
+        }
+
+        else if (bytesReceived == 0)
+        {
+            cerr  << clientSock << "의 연결 끊김." << bytesReceived << endl;
             break;
         }
 
@@ -89,33 +113,21 @@ void messagesHandle(int clientSock)
         }
         ++i;
     }
+    cout << "종료" << endl;
     close(clientSock);
-
     std::cout << "Client " << clientSock << " 가 나감." << endl;
 }
 
 int main()
 {
-    // 구조체 데이터베이스 생성
-    makeDB();
+    
+    makeDB();                          // 구조체 형식의 데이터베이스 생성
 
-    // socket ~ bind
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    int so_opt = 1;
+    int serverSocket = init_server();  // 서버 시작 및 소켓 받아오기
+    
+    listen(serverSocket, 1);           // listen
 
-    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &so_opt, sizeof(so_opt));    // 서버를 강제 종료 -> 재실행을 할 경우, 포트를 재사용하기 위해 필요.
-
-    sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(54000);
-    serverAddr.sin_addr.s_addr = inet_addr("192.168.100.124");
-
-    bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr));
-
-    // listen
-    listen(serverSocket, 1);
-
-    while (1)   // 클라이언트 accept
+    while (1)                          // 클라이언트 accept
     {
         sockaddr_in clientAddr;
         socklen_t clientSize = sizeof(clientAddr);
@@ -132,7 +144,8 @@ int main()
         std::cout << "연결된 클라이언트 번호 / 총 클라이언트 : " << clientSocket << " / " << clients.size() << endl;
 
         // 연결 성공한 클라이언트에 대해선 send/recv 용도의 스레드를 생성해서 부여함.
-        thread(messagesHandle, clientSocket).detach();
+        thread t(messagesHandle, clientSocket);
+        t.detach();
     }
 
     close(serverSocket);
