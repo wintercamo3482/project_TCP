@@ -3,8 +3,11 @@
 #include <vector>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <sstream>
+#include <sys/epoll.h>
+#include <fcntl.h>
 #include <unistd.h>
+#include <sstream>
+
 
 using namespace std;
 
@@ -35,8 +38,8 @@ void makeDB()
     my_database.push_back({3, "생명공학과", 2.7f});
     my_database.push_back({4, "항공우주공학과", 1.9f});
     my_database.push_back({5, "전기공학과", 4.0f});
-
 }
+
 
 int init_server()
 {
@@ -56,86 +59,93 @@ int init_server()
     return serverSocket;
 }
 
-vector<int> clietns;
-
 int main()
 {
-    makeDB();                           // 테스트용 DB 생성
+    makeDB();
 
-    int serverSocket = init_server();   // 서버 초기화
+    int serverSocket = init_server();
 
-    listen(serverSocket, 1);            // listen()
+    listen(serverSocket, 1);
 
-    fd_set readSet;                     // 소켓을 그룹짓기 위해 사용하는 파일 디스크럽터 선언
-    FD_ZERO(&readSet);
-    FD_SET(serverSocket, &readSet);
-    int fd_max = serverSocket;
+    int epoll_fd = epoll_create1(0); // 입출력 이벤트 저장을 위한 공간
+    
+    epoll_event ev, events[3];
+    ev.events = EPOLLIN | EPOLLET;  // 읽을 데이터가 있는 경우 이벤트를 감지하는데, 엣지 트리거로 설정한다는 뜻
+    ev.data.fd = serverSocket;
+
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, serverSocket, &ev) == -1)    // epoll 안의 파일 디스크럽터를 add/modidfy/delete하는 함수.
+    {
+        cerr << "서버소켓 추가 실패" << endl;
+        return -1;
+    }
 
     while (1)
     {
-        fd_set copySet = readSet; // 현재와 이전의 fd를 비교하기 위한 임시 구조체 생성
+        int event_cnt = epoll_wait(epoll_fd, events, 10, -1);    // 관심있는 fd에 무슨 일이 발생했는지 조사하여 사건들의 리스트를 배열로 전달.
+        cout << event_cnt << endl;
 
-        if (select(fd_max + 1, &copySet, nullptr, nullptr, nullptr) == -1)  // fd_set의 소켓 변화 감지.
-            cerr << "select 에러" << endl;
-
-        for (int i = 0; i <= fd_max; i++)   // 원본 set에 설정된 소켓 수 만큼 검사
+        for (int n = 0; n < event_cnt; ++n)
         {
-            if (FD_ISSET(i, &copySet))      // 원본 set과 복사한 set을 비교하여 배열의 어느 위치에서 변화가 일어났는지 감지
+            if (events[n].data.fd == serverSocket)          // 이벤트 발생한 곳이 서버 소켓. 즉, 클라이언트 연결 or 연결 끊김
             {
-                if (i == serverSocket)      // 서버소켓에서 변화가 감지. 즉, 새로운 클라이언트 접속 시도를 감지
-                {
-                    sockaddr_in clientAddr;
-                    socklen_t clntAddr_size = sizeof(clientAddr);
-                    int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &clntAddr_size);
+                sockaddr_in clientAddr;
+                socklen_t addr_size = sizeof(clientAddr);
 
-                    FD_SET(clientSocket, &readSet);
-                    fd_max = max(fd_max, clientSocket);         // 소켓의 수(최신 소켓 번호)를 최신화
-                    cout << clientSocket << "가 연결됨"<< endl;
+                int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &addr_size);
+
+                // 클라이언트 소켓을 non-blocking으로 설정. 엣지 트리거를 사용하기 위해 설정
+                // setNonBlocking(clientSocket);
+                int flag = fcntl(clientSocket, F_GETFL);
+                flag |= O_NONBLOCK;
+
+                // 클라이언트 fd와 epoll에 등록
+                ev.events = EPOLLIN | EPOLLET;
+                ev.data.fd = clientSocket;
+
+                if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, clientSocket, &ev) == -1)
+                    cerr << "클라이언트 " << clientSocket << " 접속 실패" << endl;
+                else
+                    cout << clientSocket << "번 클라이언트 접속" << endl;
+            }
+            
+            else
+            {
+                char recv_buffer[1024];
+
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+
+                int bytesReceived = recv(events[n].data.fd, recv_buffer, sizeof(recv_buffer), 0);
+             
+                if (bytesReceived == 0)
+                {
+                    close(events[n].data.fd);
+                    cout << events[n].data.fd << " 클라이언트 연결 끊김" << endl;
                 }
                 
-                else                        // 클라이언트 소켓에서 변화가 감지
+                else if (bytesReceived == -1)
                 {
-                    char recv_buffer[1024];
+                    continue;
+                }
 
-                    memset(recv_buffer, 0, sizeof(recv_buffer));
+                else
+                {
+                    cout << "클라이언트 " << events[n].data.fd << " : " << recv_buffer << endl;
 
-                    int bytesReceived = recv(i, recv_buffer, sizeof(recv_buffer), 0);
+                    istringstream iss(recv_buffer);
 
-                    if (bytesReceived == -1)
+                    int tmp;
+                    iss >> tmp;
+
+                    if (iss.fail() || tmp < 1 || tmp > 5)   // 클라이언트로부터 입력 받은 값이 유효하지 않을 경우
                     {
-                        continue;
-                    }
-
-                    else if (bytesReceived == 0)
-                    {
-                        cout << "클라이언트 " << i << " 의 연결 끊김" << endl;
-                        fd_max -= 1;
-                        close(i);
-                        FD_CLR(i, &readSet);
+                        string send_buffer = "잘못된 명령어. 다시 입력해주세요.";
+                        cout << send_buffer.size() << endl;
                     }
 
                     else
                     {
-                        cout << "클라이언트 " << i << " : " << recv_buffer << endl;
-
-                        istringstream iss(recv_buffer);
-
-                        int tmp;
-                        iss >> tmp;
-
-                        if (iss.fail() || tmp < 1 || tmp > 5)   // 클라이언트로부터 입력 받은 값이 유효하지 않을 경우
-                        {
-                            string send_buffer = "잘못된 명령어. 다시 입력해주세요.";
-                            cout << send_buffer.size() << endl;
-                            send(i, recv_buffer, bytesReceived, 0);
-                        }
-
-                        else
-                        {
-                            cout << "보낼 데이터 확인... " << my_database[tmp - 1].major << endl;
-                            send(i, (char *)&my_database[tmp - 1], sizeof(my_database[tmp - 1]), 0);
-                        }
-
+                        cout << "보낼 데이터 확인... " << my_database[tmp - 1].major << endl;
+                        send(events[n].data.fd, (char *)&my_database[tmp - 1], sizeof(my_database[tmp - 1]), 0);
                     }
                 }
             }
