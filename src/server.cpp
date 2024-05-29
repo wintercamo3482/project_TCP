@@ -35,7 +35,6 @@ void makeDB()
     my_database.push_back({3, "생명공학과", 2.7f});
     my_database.push_back({4, "항공우주공학과", 1.9f});
     my_database.push_back({5, "전기공학과", 4.0f});
-
 }
 
 int init_server()
