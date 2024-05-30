@@ -37,24 +37,6 @@ void makeDB()
     my_database.push_back({5, "전기공학과", 4.0f});
 }
 
-int init_server()
-{
-    // socket ~ bind
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    int so_opt = 1;
-
-    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &so_opt, sizeof(so_opt));    // 서버를 강제 종료 -> 재실행을 할 경우, 포트를 재사용하기 위해 필요.
-
-    sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(54000);
-    serverAddr.sin_addr.s_addr = inet_addr("192.168.100.124");
-
-    bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr));
-
-    return serverSocket;
-}
-
 vector<int> clients;
 
 void messagesHandle(int clientSock)
@@ -117,12 +99,21 @@ void messagesHandle(int clientSock)
     std::cout << "Client " << clientSock << " 가 나감." << endl;
 }
 
-int main()
+int main(int argc, char** argv)
 {
-    
     makeDB();                          // 구조체 형식의 데이터베이스 생성
 
-    int serverSocket = init_server();  // 서버 시작 및 소켓 받아오기
+    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);  // 서버 시작
+    int so_opt = 1;
+
+    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &so_opt, sizeof(so_opt));    // 서버를 강제 종료 -> 재실행을 할 경우, 포트를 재사용하기 위해 필요.
+
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(54000);
+    serverAddr.sin_addr.s_addr = inet_addr(argv[1]);
+
+    bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr));
     
     listen(serverSocket, 1);           // listen
 
