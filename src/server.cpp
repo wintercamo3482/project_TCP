@@ -38,31 +38,25 @@ void makeDB()
 
 }
 
-int init_server()
-{
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    int so_opt = 1;
-
-    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &so_opt, sizeof(so_opt));
-
-    sockaddr_in serverAddr;
-    memset(&serverAddr, 0, sizeof(serverAddr));
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(54000);
-    serverAddr.sin_addr.s_addr = inet_addr("192.168.100.124");
-
-    bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
-
-    return serverSocket;
-}
-
 vector<int> clietns;
 
-int main()
+int main(int argc, char** argv)
 {
     makeDB();                           // 테스트용 DB 생성
 
-    int serverSocket = init_server();   // 서버 초기화
+    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    int so_opt = 1;
+    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &so_opt, sizeof(so_opt));
+
+    sockaddr_in serverAddr;
+    
+    memset(&serverAddr, 0, sizeof(serverAddr));
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(54000);
+    serverAddr.sin_addr.s_addr = inet_addr(argv[1]);
+
+    bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+
 
     listen(serverSocket, 1);            // listen()
 

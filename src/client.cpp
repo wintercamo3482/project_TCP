@@ -15,6 +15,9 @@ struct my_data
 };
 #pragma pack(pop)
 
+const int MAX_LEN = 1024;
+char global_argv[MAX_LEN];
+
 struct connectionInfo
 {
     int sock;
@@ -23,6 +26,7 @@ struct connectionInfo
 
 connectionInfo info;
 
+
 void connectToServer()
 {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -30,7 +34,7 @@ void connectToServer()
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(54000);
-    serverAddr.sin_addr.s_addr = inet_addr("192.168.100.124");
+    serverAddr.sin_addr.s_addr = inet_addr(global_argv);
 
     info.sock = sock;
     info.addr = serverAddr;
@@ -94,11 +98,12 @@ void sendMessages(int sock)
     cout << "send 스레드 루프 탈출 확인용" << endl;
 }
 
-int main()
+int main(int argc, char** argv)
 {
     string message;
-    char buffer[1024];
-
+    char buffer[MAX_LEN];
+    
+    strncpy(global_argv, argv[1], MAX_LEN);
     connectToServer();
 
     thread receiver(receiveMessages, info.sock);
