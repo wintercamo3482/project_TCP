@@ -1,6 +1,6 @@
 
 # 구성도
-![image](https://github.com/wintercamo3482/project_TCP/assets/146147393/32941909-8214-4c7a-8db8-5916fbf7b828)
+![alt text](image-1.png)
 
 ### IO 멀티플렉싱 기반 서버
 ### 정의
