@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 
     while (1)
     {
-        fd_set copySet = readSet; // 현재와 이전의 fd를 비교하기 위한 임시 구조체 생성
+        fd_set copySet = readSet; // select 종료 후, 변화 발생 FD를 제외한 나머지 비트들이 0으로 초기화되기 때문에 이를 막기 위해 복사.
 
         if (select(fd_max + 1, &copySet, nullptr, nullptr, nullptr) == -1)  // fd_set의 소켓 변화 감지.
             cerr << "select 에러" << endl;
