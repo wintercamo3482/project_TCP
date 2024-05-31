@@ -74,7 +74,7 @@ int main(int argc, char** argv)
 
         for (int i = 0; i <= fd_max; i++)   // 원본 set에 설정된 소켓 수 만큼 검사
         {
-            if (FD_ISSET(i, &copySet))      // 원본 set과 복사한 set을 비교하여 배열의 어느 위치에서 변화가 일어났는지 감지
+            if (FD_ISSET(i, &copySet))      // select 함수 호출 결과를 확인하기 위한 용도. FD_SET에 FD가 존재하면 양수 반환. 아니면 FD_SET 조회가 끝난 것으로 간주하는 용도.
             {
                 if (i == serverSocket)      // 서버소켓에서 변화가 감지. 즉, 새로운 클라이언트 접속 시도를 감지
                 {
@@ -105,7 +105,7 @@ int main(int argc, char** argv)
                         cout << "클라이언트 " << i << " 의 연결 끊김" << endl;
                         fd_max -= 1;
                         close(i);
-                        FD_CLR(i, &readSet);
+                        FD_CLR(i, &readSet);                   // 해당 클라이언트 FD를 삭제(clear)
                     }
 
                     else
